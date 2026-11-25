@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sampling Device – Parts Explorer</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #e9eef3;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1d2733; }
+  canvas#c { display: block; width: 100%; height: 100%; touch-action: none; }
+  .panel { position: absolute; background: rgba(255,255,255,0.92); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(20,40,60,0.08); border-radius: 14px; box-shadow: 0 6px 24px rgba(20,40,60,0.12); }
+  #hud { top: 14px; left: 14px; width: 300px; padding: 14px 14px 12px; max-height: calc(100% - 28px); overflow-y: auto; }
+  #hud h1 { font-size: 15px; margin: 0 0 2px; }
+  #hud .sub { font-size: 11.5px; color: #66758a; margin-bottom: 4px; line-height: 1.4; }
+  .sec { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: #7a8796; margin: 12px 0 6px; }
+  .modes { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .heads { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  button { font: inherit; font-size: 12.5px; font-weight: 600; padding: 8px 6px; border-radius: 9px; border: 1px solid #c9d3dd;
+    background: #fff; color: #1d2733; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
+  button:hover { background: #f2f6fa; }
+  button.on { background: #1f6fb8; border-color: #1f6fb8; color: #fff; }
+  .row { display: flex; gap: 6px; align-items: center; }
+  .row > * { flex: 1; }
+  .desc { font-size: 12px; color: #3c4a5a; background: #f1f5f9; border-radius: 8px; padding: 8px 9px; margin-top: 8px; line-height: 1.4; }
+  #list { display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; margin-top: 8px; padding-right: 2px; }
+  .item { display: flex; align-items: center; gap: 8px; text-align: left; padding: 6px 8px; font-weight: 500; font-size: 12.5px; }
+  .item i { font-style: normal; font-weight: 700; font-size: 11px; min-width: 34px; text-align: center; padding: 2px 4px; border-radius: 6px; background: #e7eef5; color: #1f6fb8; font-variant-numeric: tabular-nums; }
+  .item.on i { background: rgba(255,255,255,0.22); color: #fff; }
+  label.sl { display: block; font-size: 12.5px; color: #5b6878; margin-top: 8px; }
+  label.sl b { float: right; color: #1d2733; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; margin-top: 4px; accent-color: #1f6fb8; }
+  label.chk { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: #3c4a5a; margin-top: 8px; cursor: pointer; }
+  label.chk input { accent-color: #1f6fb8; margin: 0; }
+  #infoPanel { right: 14px; bottom: 14px; width: 330px; padding: 12px 13px 12px; max-height: calc(100% - 80px); overflow-y: auto; }
+  #infoPanel h2 { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: #7a8796; margin: 0 0 8px; }
+  .ihead { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+  .badge { font-size: 14px; background: #1f6fb8; color: #fff; border-radius: 9px; padding: 6px 9px; min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+  .iname { font-size: 14.5px; font-weight: 700; }
+  .igrp { font-size: 11.5px; color: #66758a; }
+  .kv { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; margin: 5px 0; border-bottom: 1px solid #eef2f6; padding-bottom: 5px; }
+  .kv span { color: #5b6878; flex: none; max-width: 42%; }
+  .kv b { text-align: right; font-weight: 600; }
+  .empty { font-size: 12.5px; color: #5b6878; line-height: 1.45; }
+  #hint { position: absolute; top: 14px; right: 14px; font-size: 11.5px; color: #5b6878; background: rgba(255,255,255,0.8);
+    padding: 6px 10px; border-radius: 16px; pointer-events: none; }
+  #tags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .tag { position: absolute; left: 0; top: 0; font-size: 10.5px; font-weight: 600; color: #1d2733; background: rgba(255,255,255,0.92);
+    border: 1px solid rgba(20,40,60,0.14); padding: 2px 6px; border-radius: 5px; white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(20,40,60,0.1); }
+  .tag.num { pointer-events: auto; cursor: pointer; border-radius: 10px; min-width: 22px; text-align: center; color: #1f6fb8; border-color: rgba(31,111,184,0.35); }
+  .tag.num:hover { background: #eaf2fb; }
+  .tag.num.sel { background: #1f6fb8; color: #fff; border-color: #1f6fb8; z-index: 2; font-size: 11.5px; padding: 3px 8px; }
+  .tag.dim { color: #1f6fb8; background: rgba(255,255,255,0.85); border-color: rgba(31,111,184,0.25); font-variant-numeric: tabular-nums; }
+  #bom { position: absolute; inset: 0; background: rgba(20,32,45,0.35); display: none; align-items: center; justify-content: center; z-index: 10; }
+  #bom .panel { position: relative; width: min(980px, calc(100% - 28px)); max-height: calc(100% - 40px); display: flex; flex-direction: column; padding: 14px; }
+  #bom h2 { font-size: 15px; margin: 0 0 4px; }
+  #bom .sub { font-size: 11.5px; color: #66758a; margin-bottom: 10px; }
+  #bom .tw { overflow: auto; border: 1px solid #e3e9ef; border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th { position: sticky; top: 0; background: #f1f5f9; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #5b6878; padding: 8px; }
+  td { padding: 7px 8px; border-top: 1px solid #eef2f6; vertical-align: top; }
+  td.lb { font-weight: 700; color: #1f6fb8; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  @media (max-width: 720px) {
+    #hud { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 46%; border-radius: 14px 14px 0 0; }
+    #infoPanel { top: 10px; right: 10px; left: 10px; bottom: auto; width: auto; max-height: 34%; }
+    #hint { display: none; }
+    .tag { font-size: 9.5px; }
+  }
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="tags"></div>
+
+<div id="hud" class="panel">
+  <h1>Sampling Device – Earth Auger Trolley</h1>
+  <div class="sub">Parts explorer. Labels follow the AR-1 drawings and Table 7.</div>
+
+  <div class="sec">Assembly</div>
+  <div class="modes">
+    <button data-g="1">1 · Earth auger</button>
+    <button data-g="2">2 · Trolley</button>
+    <button data-g="3">3 · Drills</button>
+  </div>
+  <div class="desc" id="gdesc"></div>
+
+  <div class="sec">Components <span style="text-transform:none;font-weight:500;letter-spacing:0">(tap to inspect)</span></div>
+  <div id="list"></div>
+
+  <div class="sec">Attachment head</div>
+  <div class="heads">
+    <button class="hd">Soil mixer</button><button class="hd">Spiral auger</button>
+    <button class="hd">Flight auger</button><button class="hd">Shelby tube</button>
+    <button class="hd">Core barrel</button><button class="hd">Bucket auger</button>
+  </div>
+
+  <div class="sec">View</div>
+  <label class="sl">Exploded view <b id="expv">0%</b>
+    <input type="range" id="exp" min="0" max="100" step="1" value="0">
+  </label>
+  <label class="chk"><input type="checkbox" id="lbl" checked> Show part numbers</label>
+  <label class="chk"><input type="checkbox" id="dim"> Show key dimensions</label>
+  <label class="chk"><input type="checkbox" id="ghost" checked> Fade other parts when one is selected</label>
+  <div class="row" style="margin-top:10px">
+    <button id="bSpin">Spin drill</button>
+    <button id="bRot">Auto-rotate</button>
+    <button id="bHome">Full view</button>
+  </div>
+  <div class="row" style="margin-top:6px"><button id="bBom">Bill of materials (all parts)</button></div>
+</div>
+
+<div id="infoPanel" class="panel">
+  <h2>Selected part</h2>
+  <div id="info"></div>
+</div>
+<div id="hint">Drag to rotate · Scroll/pinch to zoom · Right-drag to pan · Click a part</div>
+
+<div id="bom">
+  <div class="panel">
+    <div class="row" style="align-items:flex-start">
+      <div style="flex:3"><h2>Bill of materials</h2><div class="sub">Every labelled component, with its Table 7 specification. Copy it into a spreadsheet for fabrication or purchasing.</div></div>
+      <div class="row" style="flex:2"><button id="bomCopy">Copy as CSV</button><button id="bomClose">Close</button></div>
+    </div>
+    <div class="tw"><table><thead><tr><th>Label</th><th>Assembly</th><th>Specification (Table 7)</th><th>Qty</th><th>Stock / source</th><th>Size</th></tr></thead><tbody id="bomBody"></tbody></table></div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe9eef3);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(32, innerWidth/innerHeight, 0.005, 60);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minDistance = 0.06; controls.maxDistance = 9;
+controls.maxPolarAngle = Math.PI * 0.495;
+controls.zoomSpeed = 1.2;
+
+scene.add(new THREE.HemisphereLight(0xf4f9ff, 0x8a8f96, 0.6));
+const sun = new THREE.DirectionalLight(0xffffff, 2.1);
+sun.position.set(2.0, 4.5, 3.2); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, {left:-1.6, right:1.6, top:1.8, bottom:-1.4, near:0.5, far:12});
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; scene.add(sun);
+const rim = new THREE.DirectionalLight(0xdfe8ff, 0.8); rim.position.set(-2.5, 2.0, -3); scene.add(rim);
+
+// floor + tile grid (same look as the softener page)
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({color:0xd9dee2, roughness:0.92}));
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; ground.userData.part = 'env'; scene.add(ground);
+const grid = new THREE.GridHelper(12, 40, 0xc4ccd3, 0xc4ccd3); grid.position.y = 0.001; grid.material.transparent = true; grid.material.opacity = 0.7; scene.add(grid);
+
+// part tagging: every mesh gets the drawing label that is current when it is built
+let CUR = 'env';
+function tagRest(){ scene.traverse(m=>{ if (m.isMesh && !m.userData.part) m.userData.part = CUR; }); }
+function P(id){ tagRest(); CUR = id; }
+// materials
+const M = {
+  frame:  new THREE.MeshStandardMaterial({color:0x33383e, metalness:0.55, roughness:0.38}),
+  rail:   new THREE.MeshStandardMaterial({color:0xc9ced4, metalness:1.0, roughness:0.22}),
+  red:    new THREE.MeshStandardMaterial({color:0xc4161c, metalness:0.15, roughness:0.32}),
+  black:  new THREE.MeshStandardMaterial({color:0x17191c, metalness:0.2, roughness:0.55}),
+  rubber: new THREE.MeshStandardMaterial({color:0x111214, metalness:0.0, roughness:0.85}),
+  alu:    new THREE.MeshStandardMaterial({color:0xb4b9bf, metalness:0.9, roughness:0.35}),
+  steel:  new THREE.MeshStandardMaterial({color:0x8d939a, metalness:1.0, roughness:0.3, side:THREE.DoubleSide}),
+  dark:   new THREE.MeshStandardMaterial({color:0x2a2d31, metalness:0.6, roughness:0.45}),
+  yellow: new THREE.MeshStandardMaterial({color:0xf2b705, metalness:0.1, roughness:0.4}),
+  plate:  new THREE.MeshStandardMaterial({color:0x3b4047, metalness:0.6, roughness:0.5}),
+};
+
+function shadow(o){ o.traverse(m=>{ if(m.isMesh){ m.castShadow = true; m.receiveShadow = true; if (!m.userData.part) m.userData.part = CUR; } }); return o; }
+const UP = new THREE.Vector3(0,1,0);
+// square tube between two points
+function sq(a, b, s, mat, parent){
+  a = new THREE.Vector3(...a); b = new THREE.Vector3(...b);
+  const d = b.clone().sub(a), L = d.length();
+  const m = new THREE.Mesh(new THREE.BoxGeometry(s, L + s*0.98, s), mat);
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(UP, d.normalize());
+  (parent||scene).add(shadow(m)); return m;
+}
+// round tube between two points
+function rod(a, b, r, mat, parent, seg=20){
+  a = new THREE.Vector3(...a); b = new THREE.Vector3(...b);
+  const d = b.clone().sub(a), L = d.length();
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L, seg), mat);
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(UP, d.normalize());
+  (parent||scene).add(shadow(m)); return m;
+}
+function box(w,h,d,mat,pos,parent){ const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat); m.position.set(...pos); (parent||scene).add(shadow(m)); return m; }
+function cyl(rt,rb,h,mat,pos,parent,seg=32){ const m = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),mat); m.position.set(...pos); (parent||scene).add(shadow(m)); return m; }
+function rbox(w,h,d,r,mat,pos,parent){ // rounded box via extrude
+  const s = new THREE.Shape(), x=-w/2, y=-d/2;
+  s.moveTo(x+r,y); s.lineTo(x+w-r,y); s.quadraticCurveTo(x+w,y,x+w,y+r); s.lineTo(x+w,y+d-r); s.quadraticCurveTo(x+w,y+d,x+w-r,y+d);
+  s.lineTo(x+r,y+d); s.quadraticCurveTo(x,y+d,x,y+d-r); s.lineTo(x,y+r); s.quadraticCurveTo(x,y,x+r,y);
+  const g = new THREE.ExtrudeGeometry(s,{depth:h-0.012, bevelEnabled:true, bevelThickness:0.006, bevelSize:0.006, bevelSegments:3, curveSegments:8});
+  g.rotateX(-Math.PI/2); g.translate(0,-h/2+0.006,0);
+  const m = new THREE.Mesh(g, mat); m.position.set(...pos); (parent||scene).add(shadow(m)); return m;
+}
+
+/* ===== Dimensions from AR-2 drawings + site photos (m). Z+ = front (engine side), X+ = machine right ===== */
+const H_DECK = 0.140, H_TOP = 1.040, H_ALL = 1.220;
+const UX = 0.220, UZ_BOT = -0.205, UZ_TOP = -0.180;
+const PX = 0.090, PZ = 0.0;
+const R25 = 0.0125, R20 = 0.011, R12 = 0.006;
+const FB_W = 0.025, FB_T = 0.0095, FB_T2 = 0.0048;
+
+Object.assign(M, {
+  frame:  new THREE.MeshStandardMaterial({color:0x121316, metalness:0.45, roughness:0.28}), // gloss black paint
+  chrome: new THREE.MeshStandardMaterial({color:0xaab0b6, metalness:1.0, roughness:0.16}),
+  orange: new THREE.MeshStandardMaterial({color:0xe2700a, metalness:0.1, roughness:0.38}),
+  tank:   new THREE.MeshPhysicalMaterial({color:0xf2f1ea, metalness:0.0, roughness:0.45, transmission:0.15, thickness:0.01}),
+  fin:    new THREE.MeshStandardMaterial({color:0xc9ccd0, metalness:0.9, roughness:0.3}),
+  rebar:  new THREE.MeshStandardMaterial({color:0x17181b, metalness:0.5, roughness:0.4}),
+  rust:   new THREE.MeshStandardMaterial({color:0x5a3b24, metalness:0.5, roughness:0.7}),
+  webbing:new THREE.MeshStandardMaterial({color:0x9aa0a6, metalness:0.1, roughness:0.8}),
+});
+
+// flat bar between two points. faceUp=true: 25mm face horizontal (lying flat); false: on edge
+function flat(a, b, w, t, mat, faceUp=true, parent){
+  a = new THREE.Vector3(...a); b = new THREE.Vector3(...b);
+  const d = b.clone().sub(a), L = d.length();
+  const g = new THREE.BoxGeometry(L, faceUp? t : w, faceUp? w : t);
+  const m = new THREE.Mesh(g, mat);
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  // build orientation: x-axis along d, keep "side" horizontal
+  const xAx = d.clone().normalize();
+  let side = new THREE.Vector3(0,1,0).cross(xAx); if (side.lengthSq()<1e-8) side.set(0,0,1); side.normalize();
+  const yAx = xAx.clone().cross(side).negate().normalize(); // roughly up
+  const zAx = xAx.clone().cross(yAx).normalize();
+  m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAx, yAx, zAx));
+  (parent||scene).add(shadow(m)); return m;
+}
+function bent(pts, r, mat, parent, tension=0.5){
+  const c = new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p)), false, 'catmullrom', tension);
+  const m = new THREE.Mesh(new THREE.TubeGeometry(c, 120, r, 16, false), mat);
+  (parent||scene).add(shadow(m)); return m;
+}
+function pipe(pts, r, mat, parent, fillet=0.04){
+  const P = pts.map(p=>new THREE.Vector3(...p));
+  const path = new THREE.CurvePath(); let cur = P[0].clone();
+  for (let i=1;i<P.length;i++){
+    if (i < P.length-1){
+      const inD = P[i].clone().sub(P[i-1]).normalize(), outD = P[i+1].clone().sub(P[i]).normalize();
+      const f = Math.min(fillet, P[i].distanceTo(P[i-1])/2, P[i].distanceTo(P[i+1])/2);
+      const p1 = P[i].clone().addScaledVector(inD, -f), p2 = P[i].clone().addScaledVector(outD, f);
+      path.add(new THREE.LineCurve3(cur, p1)); path.add(new THREE.QuadraticBezierCurve3(p1, P[i].clone(), p2)); cur = p2;
+    } else path.add(new THREE.LineCurve3(cur, P[i]));
+  }
+  const m = new THREE.Mesh(new THREE.TubeGeometry(path, 200, r, 16, false), mat);
+  (parent||scene).add(shadow(m)); return m;
+}
+function endcap(p, r, mat, dir){ const c = new THREE.Mesh(new THREE.CircleGeometry(r,20), mat); c.position.set(...p); c.lookAt(c.position.clone().add(new THREE.Vector3(...dir))); scene.add(c); }
+// deformed rebar: rod + raised ribs
+function rebar(a, b, r){
+  const m = rod(a, b, r, M.rebar);
+  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), L = A.distanceTo(B), n = Math.floor(L/0.012);
+  const q = new THREE.Quaternion().setFromUnitVectors(UP, B.clone().sub(A).normalize());
+  for (let i=1;i<n;i++){
+    const t = new THREE.Mesh(new THREE.TorusGeometry(r, r*0.22, 6, 14), M.rebar);
+    t.position.copy(A).lerp(B, i/n); t.quaternion.copy(q); t.rotateX(Math.PI/2 + 0.35); scene.add(t);
+  }
+}
+
+P('2.1');
+/* ---------- 2.1 handles + uprights: one bent ø25 black tube per side, feet welded to bottom frame ---------- */
+for (const sx of [-1,1]){
+  pipe([[sx*UX, FB_T, UZ_BOT],[sx*UX, H_TOP+0.02, UZ_TOP],[sx*UX, H_ALL, UZ_TOP-0.13]], R25, M.frame, null, 0.09);
+  endcap([sx*UX, H_ALL, UZ_TOP-0.13], R25, M.black, [0, 0.7, -0.7]);
+}
+
+/* ---------- top frame (2.16 flat bar + square arms) ---------- */
+const TY = H_TOP;
+P('2.16');
+flat([-UX, TY+0.01, UZ_TOP-0.005],[UX, TY+0.01, UZ_TOP-0.005], 0.04, FB_T2, M.frame, false); // rear plate between uprights
+P('2.3');
+for (const sx of [-1,1]) {
+  // side arms (25 sq. tube) from upright forward to post line (175)
+  box(0.025, 0.025, 0.19, M.frame, [sx*UX, TY, (UZ_TOP+PZ)/2 + 0.005]);
+}
+flat([-UX, TY, PZ+0.014],[UX, TY, PZ+0.014], FB_W, FB_T2, M.frame, false); // front bar
+P('2.2');
+// 2.2 bolt assemblies (round bushes at arm ends, as in photo)
+for (const sx of [-1,1]) {
+  const b = cyl(0.016,0.016,0.03,M.frame,[sx*(UX+0.02), TY, PZ+0.004]); b.rotation.z = Math.PI/2;
+  const n = cyl(0.007,0.007,0.04,M.alu,[sx*(UX+0.02), TY, PZ+0.004],null,6); n.rotation.z = Math.PI/2;
+}
+
+P('2.4');
+/* ---------- 2.4 ratchet tie-down on rear plate + 2.3 strap ---------- */
+const ratchet = new THREE.Group(); ratchet.position.set(0, TY+0.035, UZ_TOP-0.005); scene.add(ratchet);
+box(0.05,0.012,0.07,M.alu,[0,0,0],ratchet);
+for (const sx of [-1,1]) box(0.005,0.045,0.07,M.alu,[sx*0.024,0.02,0],ratchet);
+const sp = cyl(0.011,0.011,0.054,M.dark,[0,0.02,0],ratchet); sp.rotation.z = Math.PI/2;
+const rh = box(0.046,0.01,0.09,M.alu,[0,0.06,-0.025],ratchet); rh.rotation.x = 0.55;
+box(0.03,0.02,0.02,M.black,[0,0.085,-0.065],ratchet).rotation.x = 0.55;
+
+P('2.12');
+/* ---------- 2.12 second-frame posts: ø20 chrome, bottoms bent back and bolted ---------- */
+const DZ0 = PZ, DZ1 = UZ_BOT;   // second frame front / rear
+for (const sx of [-1,1]) {
+  P('2.12');  pipe([[sx*PX, TY+0.005, PZ],[sx*PX, H_DECK+0.035, PZ],[sx*PX, H_DECK+0.012, PZ-0.06]], R20*0.9, M.chrome, null, 0.035);
+  P('2.15');
+  // bolt + strap tab at the foot
+  box(0.03,0.006,0.035,M.frame,[sx*PX, H_DECK+0.003, PZ-0.06]);
+  cyl(0.006,0.006,0.03,M.alu,[sx*PX, H_DECK+0.006, PZ-0.06],null,6);
+}
+
+P('2.6');
+/* ---------- 2.6 second frame: open flat-bar frame (3/8" x 25), no plate ---------- */
+{
+  const yF = H_DECK, yR = 0.11;   // side bars drop slightly to the uprights
+  // front cross bar
+  flat([-UX, yF, DZ0-0.06],[UX, yF, DZ0-0.06], FB_W, FB_T, M.frame, true);
+  // side bars from front cross to uprights
+  for (const sx of [-1,1]) flat([sx*UX, yF, DZ0-0.06],[sx*UX, yR, DZ1+0.012], FB_W, FB_T, M.frame, true);
+  // centre bar carrying the spring hanger
+  flat([0, yF, DZ0-0.06],[0, (yF+yR)/2+0.003, (DZ0+DZ1)/2-0.02], FB_W, FB_T, M.frame, true);
+  // cross bar at rear between uprights
+  flat([-UX, yR, DZ1+0.012],[UX, yR, DZ1+0.012], FB_W, FB_T, M.frame, false);
+}
+
+P('2.5');
+/* ---------- 2.5 spring hanger (spring latch + cam lever) + hook ---------- */
+{
+  const g = new THREE.Group(); g.position.set(0, H_DECK+0.005, -0.12); g.rotation.x = -0.12; scene.add(g);
+  // U channel housing
+  box(0.04,0.004,0.12,M.frame,[0,0.002,0],g);
+  for (const sx of [-1,1]) box(0.004,0.028,0.12,M.frame,[sx*0.02,0.016,0],g);
+  for (const k of [0.002,0.02]) { const s = box(0.012,0.004,0.02,M.dark,[0.021,0.02,k-0.03],g); }
+  // coil spring
+  const coil=[]; for(let i=0;i<=160;i++){ const t=i/160, a=t*Math.PI*2*9; coil.push(new THREE.Vector3(Math.cos(a)*0.012, 0.016+Math.sin(a)*0.012, -0.05+t*0.06)); }
+  g.add(shadow(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(coil),400,0.0018,6), M.frame)));
+  rod([0,0.016,-0.055],[0,0.016,0.06],0.003,M.alu,g);
+  // pivot + cam lever with notches
+  const pv = cyl(0.01,0.01,0.05,M.frame,[0,0.03,0.045],g); pv.rotation.z = Math.PI/2;
+  const lever = new THREE.Group(); lever.position.set(0.028,0.03,0.045); lever.rotation.set(0,0,0); g.add(lever);
+  const lv = []; for (let i=0;i<=12;i++){ const t=i/12; lv.push([0.004, -Math.sin(t*1.3)*0.10, t*0.03+Math.sin(t*2.5)*0.02]); }
+  bent(lv, 0.006, M.frame, lever);
+  for (let i=0;i<3;i++) box(0.01,0.006,0.006,M.frame,[0.004,-0.06-i*0.012,0.04],lever);
+  // rusty hook at the front cross bar
+  bent([[0,0.0,0.14],[0,0.04,0.14],[0,0.055,0.125],[0,0.045,0.11]], 0.005, M.rust, g);
+}
+
+P('2.7');
+/* ---------- 2.7 bottom frame (3/8" x 25 flat bar, lying on ground) ---------- */
+const BZ0 = UZ_BOT - 0.01, BZ1 = UZ_BOT + 0.707, BX = 0.265;
+{
+  const y = FB_T/2;
+  flat([-BX,y,BZ0],[BX,y,BZ0], FB_W, FB_T, M.frame, true);
+  flat([-BX,y,BZ1],[BX,y,BZ1], FB_W, FB_T, M.frame, true);
+  for (const sx of [-1,1]) flat([sx*BX,y,BZ0],[sx*BX,y,BZ1], FB_W, FB_T, M.frame, true);
+  // upright foot pads
+  for (const sx of [-1,1]) box(0.05,0.004,0.05,M.frame,[sx*UX, FB_T+0.002, UZ_BOT]);
+}
+
+/* ---------- 2.8 wheel support + 2.10 deformed rebar braces + 2.9 ø200 wheels ---------- */
+const AX_Z = UZ_BOT - 0.165, AX_Y = 0.100, WX = 0.275;
+P('2.9');
+// axle tube between wheels
+rod([-WX, AX_Y, AX_Z],[WX, AX_Y, AX_Z], 0.011, M.frame);
+for (const sx of [-1,1]){
+  P('2.8');  rod([sx*UX, 0.03, UZ_BOT],[sx*(WX-0.03), AX_Y, AX_Z], R12+0.002, M.frame);             // lower arm
+  rebar([sx*UX, 0.26, UZ_BOT+0.006],[sx*(WX-0.035), AX_Y+0.01, AX_Z], 0.0055);              // rebar brace
+  box(0.008,0.035,0.035,M.frame,[sx*(WX-0.032), AX_Y, AX_Z]);
+}
+function wheel(x){
+  const g = new THREE.Group(); g.position.set(x, AX_Y, AX_Z);
+  const tire = new THREE.Mesh(new THREE.TorusGeometry(0.072,0.028,24,72), M.rubber); tire.rotation.y = Math.PI/2; g.add(tire);
+  for (let i=0;i<44;i++){
+    const a = i/44*Math.PI*2;
+    for (const s of [-1,1]) {
+      const lug = new THREE.Mesh(new THREE.BoxGeometry(0.018,0.005,0.008), M.rubber);
+      lug.position.set(s*0.012, Math.sin(a)*0.0995, Math.cos(a)*0.0995); lug.rotation.x = -a; lug.rotation.y = s*0.5; g.add(lug);
+    }
+  }
+  const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.048,0.048,0.046,40,1,true), M.frame); rim.rotation.z = Math.PI/2; g.add(rim);
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.046,0.046,0.006,40), M.frame); disc.rotation.z = Math.PI/2; g.add(disc);
+  for (let i=0;i<4;i++){ const a=i/4*Math.PI*2; const b = new THREE.Mesh(new THREE.CylinderGeometry(0.004,0.004,0.014,8), M.alu); b.rotation.z=Math.PI/2; b.position.set(0, Math.sin(a)*0.026, Math.cos(a)*0.026); g.add(b); }
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.06,24), M.frame); hub.rotation.z = Math.PI/2; g.add(hub);
+  scene.add(shadow(g));
+}
+P('2.9');
+wheel(-WX); wheel(WX);
+
+P('2.11');
+/* ================= 1. EARTH AUGER POWERHEAD (no bit) ================= */
+const carriage = new THREE.Group(); scene.add(carriage);
+const EZ = 0.210, MY = 0.655; // gear-case axis; mounting bar height
+// 2.11/2.13 support sleeve on posts with clamp knob
+for (const sx of [-1,1]) {
+  P('2.11');  cyl(0.02,0.02,0.07,M.frame,[sx*PX, MY+0.04, PZ],carriage);
+  P('2.13');  const k = cyl(0.006,0.006,0.035,M.alu,[sx*(PX+0.03), MY+0.05, PZ],carriage); k.rotation.z = Math.PI/2;
+  const kb = cyl(0.012,0.012,0.012,M.black,[sx*(PX+0.048), MY+0.05, PZ],carriage); kb.rotation.z = Math.PI/2;
+}
+P('2.14');
+// 2.14 mounting flat bars: run under the engine, past the posts toward the uprights (photo)
+for (const sx of [-1,1]) flat([sx*PX, MY, EZ+0.12],[sx*PX, MY, PZ-0.09], 0.015, 0.0032*2, M.frame, true, carriage);
+flat([-PX, MY, PZ+0.02],[PX, MY, PZ+0.02], 0.015, 0.0064, M.frame, true, carriage);
+flat([-PX, MY, EZ-0.05],[PX, MY, EZ-0.05], 0.015, 0.0064, M.frame, true, carriage);
+for (const sx of [-1,1]) box(0.022,0.012,0.02,M.black,[sx*PX, MY-0.004, PZ-0.09],carriage); // end caps
+
+const E = new THREE.Group(); E.position.set(0, 0, EZ); carriage.add(E);
+const silver = new THREE.MeshStandardMaterial({color:0xa9adb2, metalness:0.85, roughness:0.32});
+const castAlu = new THREE.MeshStandardMaterial({color:0x9da2a7, metalness:0.75, roughness:0.42, side:THREE.DoubleSide});
+const shroud = new THREE.MeshStandardMaterial({color:0x34373b, metalness:0.15, roughness:0.55});
+const slotM = new THREE.MeshStandardMaterial({color:0x030303, roughness:0.9});
+// louvred panel helper: dark slots on a face
+function slots(n, w, h, gap, pos, rotY, parent, vertical=false){
+  for (let i=0;i<n;i++){
+    const s = new THREE.Mesh(new THREE.BoxGeometry(vertical? h : w, vertical? w : h, 0.006), slotM);
+    const off = (i-(n-1)/2)*gap;
+    s.position.set(pos[0] + (vertical? off*Math.cos(rotY):0), pos[1] + (vertical? 0 : off), pos[2] - (vertical? off*Math.sin(rotY):0));
+    s.rotation.y = rotY; parent.add(s);
+  }
+}
+const B = MY + 0.02;          // top of gear case / handlebar centre height
+
+P('1.9');
+/* ---- 1.9 gear case: flared cast aluminium ---- */
+{
+  const prof = [[0.0,-0.115],[0.02,-0.115],[0.022,-0.09],[0.028,-0.075],[0.038,-0.055],[0.05,-0.03],[0.058,-0.012],[0.06,0.0],[0.055,0.012],[0.0,0.012]].map(p=>new THREE.Vector2(p[0],p[1]));
+  const g = new THREE.Mesh(new THREE.LatheGeometry(prof, 48), castAlu); g.position.y = B; E.add(shadow(g));
+  for (let i=0;i<4;i++){ const a=i/4*Math.PI*2+Math.PI/4; const rib = box(0.005,0.05,0.022,castAlu,[Math.cos(a)*0.036,B-0.04,Math.sin(a)*0.036],E); rib.rotation.y = -a; }
+  P('1.10');  cyl(0.012,0.012,0.05,M.black,[0,B-0.14,0],E,6);   // hex output spindle (bit not fitted)
+}
+
+P('1');
+/* ---- engine block ---- */
+const EY = B + 0.012;  // engine sits on gear case
+// central orange crankcase housing
+rbox(0.12,0.12,0.15,0.03,M.orange,[0.0,EY+0.06,0.0],E);
+rbox(0.10,0.05,0.13,0.025,M.orange,[0.0,EY+0.03,0.0],E);
+// chrome cylinder fins (exposed, machine right/top)
+for (let i=0;i<8;i++){ const f = cyl(0.04,0.04,0.0035,M.fin,[0.075+i*0.0075,EY+0.10,-0.01],E,28); f.rotation.z = Math.PI/2; }
+const cylb = cyl(0.028,0.028,0.07,M.fin,[0.1,EY+0.10,-0.01],E,20); cylb.rotation.z = Math.PI/2;
+// spark plug + boot
+const pl = cyl(0.009,0.009,0.03,M.black,[0.15,EY+0.12,-0.01],E,12); pl.rotation.z = Math.PI/2;
+// left (-x): black louvred fan / flywheel shroud
+rbox(0.07,0.12,0.14,0.02,shroud,[-0.095,EY+0.07,0.0],E);
+slots(6, 0.11, 0.007, 0.016, [-0.131,EY+0.07,0.0], Math.PI/2, E);          // side louvres
+slots(5, 0.05, 0.007, 0.018, [-0.10,EY+0.07,0.071], 0, E);                // front louvres
+P('1.3');
+// right (+x): black slotted muffler guard
+rbox(0.075,0.10,0.12,0.018,shroud,[0.13,EY+0.06,0.03],E);
+for (let i=0;i<3;i++){ const sl = rbox(0.006,0.05,0.016,0.004,slotM,[0.168,EY+0.065,0.0+i*0.028],E); }
+  for (let i=0;i<3;i++){ const sl = rbox(0.05,0.016,0.006,0.004,slotM,[0.13,EY+0.07+(i-1)*0.025,0.091],E); }
+rbox(0.02,0.08,0.02,0.006,M.black,[0.17,EY+0.06,0.09],E);
+P('1.13');
+// front (+z): black air filter cover with screw (vertical rounded clip shape)
+rbox(0.06,0.13,0.05,0.018,M.black,[-0.02,EY+0.065,0.095],E);
+rbox(0.04,0.09,0.012,0.01,M.dark,[-0.02,EY+0.07,0.121],E);
+cyl(0.006,0.006,0.006,M.alu,[-0.02,EY+0.095,0.128],E,12).rotation.x = Math.PI/2;
+P('1');
+// stop switch knob + black wire loop on the front
+cyl(0.012,0.012,0.012,M.black,[0.035,EY+0.085,0.085],E,16).rotation.x = Math.PI/2;
+bent([[0.035,EY+0.08,0.09],[0.05,EY+0.04,0.10],[0.04,EY+0.0,0.09],[0.07,EY-0.01,0.07],[0.11,EY+0.0,0.06]],0.0035,M.black,E);
+P('1.1');
+// top: black recoil starter housing + orange T grip + primer stub
+rbox(0.15,0.035,0.13,0.02,M.black,[0.01,EY+0.135,-0.03],E);
+cyl(0.055,0.06,0.03,M.black,[0.01,EY+0.165,-0.03],E,40);
+rod([0.0,EY+0.18,-0.01],[0.0,EY+0.215,0.03],0.005,M.black,E);
+const tg = cyl(0.011,0.011,0.07,M.orange,[0.0,EY+0.22,0.035],E,16); tg.rotation.z = Math.PI/2;
+for (const sx of [-1,1]) cyl(0.012,0.012,0.012,M.black,[sx*0.035,EY+0.22,0.035],E,16).rotation.z = Math.PI/2;
+P('1.4');
+rod([-0.075,EY+0.12,0.05],[-0.08,EY+0.16,0.06],0.007,M.black,E);
+P('1.11');
+// rear (-z): white translucent fuel tank (post side, as built)
+rbox(0.12,0.12,0.09,0.025,M.tank,[0.0,EY+0.085,-0.115],E);
+cyl(0.017,0.017,0.02,M.black,[0.03,EY+0.155,-0.125],E,20);
+P('1.5');
+bent([[0.02,EY+0.05,-0.07],[0.05,EY+0.06,-0.02],[0.04,EY+0.05,0.06]],0.0028,new THREE.MeshStandardMaterial({color:0xb58a3a,metalness:0.6,roughness:0.4}),E);
+P('1.12');
+// 1.12 hook under rear
+bent([[0,B-0.0,-0.14],[0,B-0.025,-0.155],[0,B-0.035,-0.14],[0,B-0.025,-0.125]],0.004,M.alu,E);
+
+P('1.6');
+/* ---- 1.6 handle bar: silver centre bar + bull-horn side loops, orange outer sections ---- */
+{
+  // centre bar (square tube) across the gear case
+  box(0.24,0.026,0.032,silver,[0,B-0.004,0.065],E);
+  box(0.07,0.03,0.07,silver,[0,B-0.002,0.03],E); // clamp block
+  for (const sx of [-1,1]) rod([sx*0.11,B-0.004,0.065],[sx*0.106,B+0.004,0.02],0.012,silver,E);
+  const tilt = 0.42; // loops rise outward
+  for (const sx of [-1,1]){
+    // loop in local (u = outward, v = along z); lifted by u*tan(tilt)
+    const loop = [[0.0,0.03],[0.04,0.10],[0.12,0.13],[0.19,0.11],[0.21,0.04],[0.20,-0.07],[0.17,-0.12],[0.10,-0.12],[0.04,-0.07],[0.0,-0.03]];
+    const map = ([u,v]) => new THREE.Vector3(sx*(0.105+u), B+0.004+u*Math.tan(tilt), v);
+    const pts = loop.map(map);
+    const curve = new THREE.CatmullRomCurve3(pts, true, 'catmullrom', 0.5);
+    // split colour: inner third silver, rest orange
+    const N = 240, tube = new THREE.TubeGeometry(curve, N, 0.0125, 14, true);
+    const orangeMesh = new THREE.Mesh(tube, M.orange); E.add(shadow(orangeMesh));
+    // silver sleeve over inner leg
+    const inner = new THREE.CatmullRomCurve3([map([0.07,0.115]),map([0.025,0.08]),map([0.0,0.0]),map([0.025,-0.06]),map([0.07,-0.115])]);
+    E.add(shadow(new THREE.Mesh(new THREE.TubeGeometry(inner, 60, 0.0135, 14, false), silver)));
+    // join from centre bar to loop
+    rod([sx*0.08,B+0.004,0],[sx*0.108,B+0.006,0],0.012,silver,E);
+    // black rubber grip on the outer rear leg
+    const g1 = map([0.205,-0.02]), g2 = map([0.19,-0.10]);
+    rod(g1.toArray(), g2.toArray(), 0.017, M.black, E);
+  }
+  P('1.8');
+  // corrugated black cable conduit slung under the bar, loop to loop
+  const cpts = [[-0.29,B+0.08,0.06],[-0.24,B-0.01,0.07],[-0.12,B-0.03,0.05],[0,B-0.035,0.045],[0.12,B-0.03,0.05],[0.24,B-0.01,0.07],[0.30,B+0.07,0.03]];
+  const cc = new THREE.CatmullRomCurve3(cpts.map(p=>new THREE.Vector3(...p)));
+  E.add(shadow(new THREE.Mesh(new THREE.TubeGeometry(cc, 120, 0.006, 10, false), M.rubber)));
+  const L = cc.getLength(), n = Math.floor(L/0.006);
+  for (let i=0;i<n;i++){
+    const t = i/n, p = cc.getPointAt(t), tg2 = cc.getTangentAt(t);
+    const r = new THREE.Mesh(new THREE.TorusGeometry(0.0065,0.0017,5,12), M.rubber);
+    r.position.copy(p); r.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), tg2); E.add(r);
+  }
+  // cable ties
+  for (const x of [-0.07,0.07]) { const t = new THREE.Mesh(new THREE.TorusGeometry(0.02,0.0015,6,20), M.alu); t.position.set(x,B-0.005,0.03); t.rotation.y = Math.PI/2; E.add(t); }
+}
+P('1.8');
+// 1.8 throttle trigger housing (orange) on right loop, rear
+{
+  const y = B + 0.004 + 0.19*Math.tan(0.42);
+  rbox(0.035,0.045,0.06,0.01,M.orange,[0.29,y+0.01,-0.06],E);
+  const trig = box(0.01,0.04,0.012,M.orange,[0.29,y-0.03,-0.05],E); trig.rotation.x = 0.4;
+}
+
+/* ---------- parts added for the parts explorer ---------- */
+P('1.2');   // M5 x 20 bolts (4) holding the starter housing
+for (const [x,z] of [[-0.055,-0.08],[0.065,-0.08],[-0.055,0.02],[0.065,0.02]]) { cyl(0.0045,0.0045,0.004,M.alu,[x,EY+0.154,z],E,6); cyl(0.0022,0.0022,0.02,M.alu,[x,EY+0.145,z],E,8); }
+P('1.7');   // M6 bolts (4) clamping the handlebar to the gear case
+for (const [x,z] of [[-0.024,0.006],[0.024,0.006],[-0.024,0.054],[0.024,0.054]]) { cyl(0.0055,0.0055,0.005,M.alu,[x,B+0.0155,z],E,6); }
+P('1.4');   // carburettor body + intake
+box(0.034,0.032,0.03,M.alu,[0.045,EY+0.055,0.082],E);
+cyl(0.009,0.009,0.02,M.alu,[0.045,EY+0.055,0.104],E,16).rotation.x = Math.PI/2;
+box(0.012,0.012,0.012,M.black,[0.066,EY+0.06,0.082],E);
+P('2.10');  // gear-case support: deformed rebar cradle hung from the mounting bars
+{
+  const pts=[[-PX,MY-0.004,EZ-0.03],[-0.07,MY-0.04,EZ-0.01],[-0.045,MY-0.065,EZ],[0.045,MY-0.065,EZ],[0.07,MY-0.04,EZ-0.01],[PX,MY-0.004,EZ-0.03]];
+  bent(pts,0.005,M.rebar,carriage);
+  const c = new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p)));
+  for (let i=1;i<28;i++){ const t=i/28; const r=new THREE.Mesh(new THREE.TorusGeometry(0.005,0.0012,5,10),M.rebar); r.position.copy(c.getPointAt(t)); r.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1), c.getTangentAt(t)); r.rotateX(0.4); carriage.add(r); }
+}
+
+/* ================= 3.x ATTACHMENT HEADS (Figure 2) ================= */
+const HEAD_TOP_Y = (MY + 0.02) - 0.165 + 0.035;   // connector slides 35 mm over the output spindle
+const headMount = new THREE.Group(); headMount.position.set(0, HEAD_TOP_Y, EZ); carriage.add(headMount);
+const HM = {
+  steel: new THREE.MeshStandardMaterial({color:0x8e959c, metalness:0.95, roughness:0.28, side:THREE.DoubleSide}),
+  galv:  new THREE.MeshStandardMaterial({color:0xb9bec3, metalness:0.9, roughness:0.22, side:THREE.DoubleSide}),
+  paint: new THREE.MeshStandardMaterial({color:0x2c3035, metalness:0.5, roughness:0.4, side:THREE.DoubleSide}),
+  dark:  new THREE.MeshStandardMaterial({color:0x1a1c1f, metalness:0.6, roughness:0.4, side:THREE.DoubleSide}),
+  tooth: new THREE.MeshStandardMaterial({color:0x5d6166, metalness:1.0, roughness:0.25}),
+};
+function V(x,y,z){ return new THREE.Vector3(x,y,z); }
+function mk(geo, mat, g){ const m = new THREE.Mesh(geo, mat); g.add(shadow(m)); return m; }
+function vcyl(r1, r2, y0, y1, mat, g, seg=32, open=false){ // vertical cylinder from y0 (top) to y1 (bottom)
+  const m = mk(new THREE.CylinderGeometry(r1, r2, y0-y1, seg, 1, open), mat, g); m.position.y = (y0+y1)/2; return m;
+}
+function tubeAlong(pts, r, mat, g, closed=false, seg=200){
+  const c = new THREE.CatmullRomCurve3(pts, closed, 'catmullrom', 0.5);
+  return mk(new THREE.TubeGeometry(c, seg, r, 10, closed), mat, g);
+}
+// 3.1 connector (socket with cross-pin) + 3.2 shaft
+function connector(g, len=0.09, r=0.016){
+  P('3.1');
+  vcyl(r, r, 0, -len, HM.paint, g);
+  const hole = mk(new THREE.CylinderGeometry(0.0045,0.0045,r*2+0.004,14), HM.dark, g); hole.rotation.z = Math.PI/2; hole.position.y = -0.03;
+  const pin = mk(new THREE.CylinderGeometry(0.003,0.003,r*2+0.02,10), HM.galv, g); pin.rotation.z = Math.PI/2; pin.position.y = -0.03;
+  const ring = mk(new THREE.TorusGeometry(0.012,0.0015,6,20), HM.galv, g); ring.position.set(r+0.008,-0.03,0); ring.rotation.y = Math.PI/2;
+  P('3.2');
+}
+// helical flight (ribbon) with thickness
+function flight(g, rIn, rOut, pitch, yTop, yBot, mat, thick=0.003){
+  const turns = (yTop-yBot)/pitch, seg = Math.ceil(turns*96);
+  const pos = [], idx = [];
+  for (let i=0;i<=seg;i++){
+    const t = i/seg, a = t*turns*Math.PI*2, y = yTop - t*(yTop-yBot);
+    const taper = Math.min(1, t*8, (1-t)*8 + 0.35);         // eased ends
+    const ro = rIn + (rOut-rIn)*Math.min(1,taper);
+    const c = Math.cos(a), s = Math.sin(a);
+    for (const dy of [thick/2, -thick/2]) pos.push(c*rIn, y+dy, s*rIn,  c*ro, y+dy, s*ro);
+    if (i<seg){ const k=i*4;
+      idx.push(k,k+1,k+4, k+1,k+5,k+4,  k+2,k+6,k+3, k+3,k+6,k+7,  k+1,k+3,k+5, k+3,k+7,k+5);
+    }
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3)); geo.setIndex(idx); geo.computeVertexNormals();
+  return mk(geo, mat, g);
+}
+function pilotTip(g, yTop, len, r){
+  const c = mk(new THREE.ConeGeometry(r, len, 4), HM.dark, g); c.rotation.x = Math.PI; c.position.y = yTop - len/2; c.rotation.y = Math.PI/4;
+  for (const sx of [-1,1]) { const t = mk(new THREE.BoxGeometry(r*2.2, 0.004, 0.012), HM.tooth, g); t.position.set(sx*r*1.1, yTop-0.006, 0); t.rotation.z = sx*0.5; }
+}
+
+const HEADS = [];
+P('3.2');
+/* 6 / 12  SOIL MIXER — L 795, mixer 190 high, ø160 */
+HEADS.push({ key:'mixer', name:'Soil Mixer', spec:'Overall 795 mm · mixing cage 190 mm high · Ø160 mm', L:0.795, R:0.08, spin:7, surface:true, build(g){
+  const L=0.795, H=0.19, R=0.08, yT=-L+H, yB=-L+0.012;
+  connector(g); vcyl(0.009,0.009,-0.09,yB,HM.steel,g);
+  P('3.4');
+  // three twisted egg-beater loops (6 ribs) forming the cage
+  for (let k=0;k<3;k++){
+    const p0 = k*Math.PI*2/3, pts=[];
+    const N=30;
+    for (let i=0;i<=N;i++){ const t=i/N, y=yT-(yT-yB)*t, r=R*Math.pow(Math.sin(Math.PI*t),0.65), a=p0+0.9*t; pts.push(V(Math.cos(a)*r,y,Math.sin(a)*r)); }
+    for (let i=N;i>=0;i--){ const t=i/N, y=yT-(yT-yB)*t, r=R*Math.pow(Math.sin(Math.PI*t),0.65), a=p0+Math.PI-0.9*t; pts.push(V(Math.cos(a)*r,y,Math.sin(a)*r)); }
+    tubeAlong(pts, 0.0045, HM.steel, g, true, 240);
+  }
+  // 3.4 base impeller: three curved blades inside a ring
+  const blades = new THREE.Group(); blades.position.y = yB; g.add(blades);
+  mk(new THREE.CylinderGeometry(0.016,0.016,0.012,20), HM.dark, blades);
+  for (let k=0;k<3;k++){
+    const pts=[]; for (let i=0;i<=12;i++){ const t=i/12, r=0.012+t*0.06, a=k*Math.PI*2/3 + Math.sin(t*Math.PI*0.8)*0.9; pts.push(V(Math.cos(a)*r,0,Math.sin(a)*r)); }
+    const c = new THREE.CatmullRomCurve3(pts); const sh = new THREE.Shape(); sh.moveTo(-0.004,-0.010); sh.lineTo(0.004,-0.010); sh.lineTo(0.004,0.010); sh.lineTo(-0.004,0.010);
+    mk(new THREE.ExtrudeGeometry(sh,{steps:40,bevelEnabled:false,extrudePath:c}), HM.dark, blades);
+  }
+  const ring = mk(new THREE.TorusGeometry(0.075,0.004,8,48), HM.dark, blades); ring.rotation.x = Math.PI/2;
+}});
+/* 7 / 13  SPIRAL AUGER — L 800, flight 600, tip 65, ø90 */
+HEADS.push({ key:'spiral', name:'Spiral Auger', spec:'Overall 800 mm · spiral 600 mm · tip 65 mm · Ø90 mm', L:0.80, R:0.045, spin:9, build(g){
+  const L=0.80, yTipTop=-L+0.065, yFlTop=yTipTop+0.60;
+  connector(g); vcyl(0.011,0.011,-0.09,yTipTop,HM.steel,g);
+  P('3.5');
+  // open spiral: round-bar coil standing off the shaft
+  const turns = 7, pts=[]; for (let i=0;i<=turns*40;i++){ const t=i/(turns*40), a=t*turns*Math.PI*2, y=yFlTop-t*0.60, r=0.045*Math.min(1,t*14,(1-t)*14+0.55); pts.push(V(Math.cos(a)*r,y,Math.sin(a)*r)); }
+  tubeAlong(pts, 0.006, HM.steel, g, false, 600);
+  flight(g, 0.011, 0.03, 0.60/turns, yFlTop, yTipTop, HM.steel, 0.003);
+  P('3.3');  pilotTip(g, yTipTop, 0.065, 0.012);
+}});
+/* 8 / 14  STANDARD FLIGHT AUGER — L 800, flight 640, tip 85, ø150 */
+HEADS.push({ key:'flight', name:'Standard Flight Auger', spec:'Overall 800 mm · flight 640 mm · tip 85 mm · Ø150 mm', L:0.80, R:0.075, spin:8, build(g){
+  const L=0.80, yTipTop=-L+0.085, yFlTop=yTipTop+0.64;
+  connector(g); vcyl(0.0125,0.0125,-0.09,yTipTop,HM.steel,g);
+  P('3.5');  flight(g, 0.0125, 0.075, 0.64/3.1, yFlTop, yTipTop, HM.steel, 0.004);
+  P('3.3');  pilotTip(g, yTipTop, 0.085, 0.016);
+  for (const sx of [-1,1]) { const t = mk(new THREE.BoxGeometry(0.06,0.01,0.014), HM.tooth, g); t.position.set(sx*0.04, yTipTop+0.004, 0); t.rotation.z = sx*0.35; }
+}});
+/* 9 / 15  SHELBY TUBE — L 800 (310 shank + 490 tube), ø75 */
+HEADS.push({ key:'shelby', name:'Shelby Tube', spec:'Overall 800 mm · shank 310 mm · tube 490 mm · Ø75 mm', L:0.80, R:0.0375, spin:6, build(g){
+  const L=0.80, yJ=-0.31;
+  connector(g); vcyl(0.011,0.011,-0.09,yJ+0.045,HM.steel,g);
+  P('3.6');  vcyl(0.011,0.0375,yJ+0.045,yJ,HM.paint,g,40);                    // tapered drive head
+  vcyl(0.0375,0.0375,yJ,-L+0.012,HM.galv,g,48,true);               // thin-wall tube (open)
+  vcyl(0.0355,0.0355,yJ,-L+0.012,HM.dark,g,48,true).material = HM.dark;
+  vcyl(0.0375,0.034,-L+0.012,-L,HM.galv,g,48,true);                 // bevelled cutting edge
+  for (const y of [yJ-0.02, yJ-0.05]) { const b = mk(new THREE.CylinderGeometry(0.004,0.004,0.006,10), HM.dark, g); b.rotation.z=Math.PI/2; b.position.set(0.0375,y,0); }
+}});
+/* 10 / 16  CORE BARREL — L 800 (460 shank + 340 barrel), ø88.9 */
+HEADS.push({ key:'core', name:'Core Barrel', spec:'Overall 800 mm · shank 460 mm · barrel 340 mm · Ø88.9 mm', L:0.80, R:0.04445, spin:6, build(g){
+  const L=0.80, yJ=-0.46, R=0.04445;
+  connector(g); vcyl(0.011,0.011,-0.09,yJ+0.012,HM.steel,g);
+  P('3.7');  vcyl(0.024,0.024,yJ+0.012,yJ-0.006,HM.paint,g,6);                // hex collar
+  vcyl(R,R,yJ-0.006,yJ-0.016,HM.paint,g,48);                        // head cap
+  vcyl(R,R,yJ-0.016,-L+0.02,HM.steel,g,48,true);                    // barrel
+  vcyl(R-0.004,R-0.004,yJ-0.016,-L+0.02,HM.dark,g,48,true);         // bore
+  vcyl(R+0.002,R+0.002,-L+0.035,-L+0.008,HM.paint,g,48,true);       // crown ring
+  for (let i=0;i<10;i++){ const a=i/10*Math.PI*2; const t=mk(new THREE.BoxGeometry(0.008,0.014,0.01),HM.tooth,g); t.position.set(Math.cos(a)*R,-L+0.007,Math.sin(a)*R); t.rotation.y=-a; }
+}});
+/* 11 / 17  BUCKET AUGER — L 800 (310 shank + 490 bucket), ø101.6 */
+HEADS.push({ key:'bucket', name:'Bucket Auger', spec:'Overall 800 mm · shank 310 mm · bucket 490 mm · Ø101.6 mm', L:0.80, R:0.0508, spin:6, build(g){
+  const L=0.80, yJ=-0.31, R=0.0508;
+  connector(g); vcyl(0.011,0.011,-0.09,yJ+0.02,HM.steel,g);
+  P('3.8');  vcyl(0.014,0.014,yJ+0.02,yJ-0.005,HM.paint,g,20);
+  // bail: two straps from shank down to the rim
+  for (const sx of [-1,1]) { const st = mk(new THREE.BoxGeometry(0.004,0.07,0.02), HM.paint, g); st.position.set(sx*0.032,yJ-0.03,0); st.rotation.z = sx*0.62; }
+  vcyl(R,R,yJ-0.055,yJ-0.065,HM.paint,g,48,true);
+  // bucket body + split rounded bottom (two cutting lips)
+  vcyl(R,R,yJ-0.06,-L+0.07,HM.steel,g,48,true);
+  vcyl(R-0.003,R-0.003,yJ-0.06,-L+0.07,HM.dark,g,48,true);
+  for (const k of [0,1]){
+    const prof=[]; for(let i=0;i<=12;i++){ const t=i/12, a=t*Math.PI/2; prof.push(new THREE.Vector2(Math.max(0.004,R*Math.cos(a)), -L+0.07 - Math.sin(a)*0.064)); }
+    const lip = mk(new THREE.LatheGeometry(prof, 24, k*Math.PI+0.12, Math.PI-0.24), HM.steel, g);
+    const ed = mk(new THREE.BoxGeometry(0.004, 0.06, 0.09), HM.tooth, g); ed.position.set(0, -L+0.04, 0); ed.rotation.y = k? 0.12 : -0.12; ed.visible = k===0;
+  }
+}});
+
+for (const h of HEADS){ h.group = new THREE.Group(); h.build(h.group); h.group.visible = false; headMount.add(h.group); }
+
+
+/* ---------- Table 7 — specifications, plus replication notes ---------- */
+const GROUPS = {
+  '1': {title:'1 · Earth Auger', desc:'INGCO 52 cc two-cycle gasoline earth auger (powerhead). Bought complete; only the mounting to the trolley is fabricated.'},
+  '2': {title:'2 · Earth Auger Trolley', desc:'Welded steel trolley that carries the powerhead on two ø20 mm posts. Overall height 1220 mm (150 + 890 + 180 mm).'},
+  '3': {title:'3 · Earth Auger Drills', desc:'Interchangeable attachment heads. Each pins onto the gear-case output spindle (1.10) with the adapter (3.1).'},
+};
+const PARTS = [
+  // ---- 1. Earth auger ----
+  {id:'1',   spec:'Two cycle engine, 52 cc', qty:'1', stock:'Purchased (INGCO gasoline earth auger)', size:'52 cc, air-cooled single cylinder', note:'Use the fuel–oil mix and break-in procedure in the INGCO manual. Everything numbered 1.x comes with the powerhead.'},
+  {id:'1.1', spec:'Starter Assembly', qty:'1', stock:'Supplied with engine', size:'Recoil starter, T-grip on top', note:'Pull straight up; keep the top of the powerhead clear of the top frame (2.3) when raised.'},
+  {id:'1.2', spec:'Bolt Assembly, M5 x 20 (4 pcs)', qty:'4', stock:'M5 × 20 mm bolts', size:'M5 × 20', note:'Hold the starter housing to the engine. Re-torque after the first few runs; vibration loosens them.'},
+  {id:'1.3', spec:'Muffler Assembly', qty:'1', stock:'Supplied with engine', size:'Slotted heat guard', note:'Gets hot. Route the ratchet strap (2.4) and throttle cable away from it.'},
+  {id:'1.4', spec:'Carburetor Assembly', qty:'1', stock:'Supplied with engine', size:'With primer / choke', note:'Sits behind the air filter (1.13). Prime before cold starts.'},
+  {id:'1.5', spec:'Fuel Tube', qty:'1', stock:'Supplied with engine', size:'Tank → carburettor', note:'Check for cracks and kinks before each use.'},
+  {id:'1.6', spec:'Handle Bar Assembly', qty:'1', stock:'Supplied with engine', size:'Steel centre bar + two looped side handles', note:'Clamped to the gear case with 1.7. The side loops overhang the posts; the operator steadies the powerhead here while drilling.'},
+  {id:'1.7', spec:'Bolt Assembly, M6 x 5 (4 pcs)', qty:'4', stock:'M6 bolts', size:'M6 × 5 (as listed)', note:'Clamp the handlebar to the gear case.'},
+  {id:'1.8', spec:'Throttle Cable & Trigger Assembly', qty:'1', stock:'Supplied with engine', size:'Trigger on right handle, cable in corrugated conduit', note:'Cable runs under the handlebar in the conduit; zip-tie it clear of the posts and sleeves.'},
+  {id:'1.9', spec:'Gear Case Assembly', qty:'1', stock:'Supplied with engine', size:'Reduction gearbox, output down', note:'Rests on the gear-case support (2.10) and mounting bars (2.14).'},
+  {id:'1.10',spec:'Auger Bit Assembly', qty:'1', stock:'Supplied with engine', size:'Hex output spindle', note:'All drills (3.x) attach here through the adapter (3.1) and cross pin.'},
+  {id:'1.11',spec:'Fuel Tank', qty:'1', stock:'Supplied with engine', size:'Translucent tank, post side', note:'Faces the posts. Refuel with the engine off and cool.'},
+  {id:'1.12',spec:'Steel Hook', qty:'1', stock:'Steel hook', size:'Under rear of engine', note:'The ratchet tie-down strap (2.4) hooks here to hold and raise the powerhead.'},
+  {id:'1.13',spec:'Air Filter Assembly', qty:'1', stock:'Supplied with engine', size:'Black cover with screw, front', note:'Clean the element after dusty soil work.'},
+  // ---- 2. Trolley ----
+  {id:'2.1', spec:'Handle ø25mm Round Steel Bar', qty:'2', stock:'ø25 mm round steel bar', size:'Vertical to 1040 mm, then angled back to 1220 mm overall', note:'Bend each bar as one piece. The feet are welded to the rear bar of the bottom frame (2.7), and the top frame (2.3) is welded at 1040 mm.'},
+  {id:'2.2', spec:'Bolt Assembly, M6 x 5 (2pcs)', qty:'2', stock:'M6 bolts with round bushes', size:'M6', note:'At the front ends of the top frame arms, where the front bar and posts are held.'},
+  {id:'2.3', spec:'Second Frame Assembly', qty:'1', stock:'Welded steel', size:'Top frame, 175 mm deep (handle centreline to post line)', note:'Two side arms run 175 mm forward from the handles to a front bar that carries the tops of the posts (2.12).'},
+  {id:'2.4', spec:'Ratchet Tie-down Assembly', qty:'1', stock:'Ratchet buckle + webbing strap', size:'≈25 mm webbing', note:'Buckle on the rear top bar (2.16); strap runs down to the steel hook (1.12). Ratchet to raise and hold the powerhead between holes.'},
+  {id:'2.5', spec:'Spring Hanger Assembly', qty:'1', stock:'Channel housing, coil spring, cam lever, hook', size:'On the second frame centre bar', note:'Spring-loaded latch with a notched cam lever.'},
+  {id:'2.6', spec:'Second Frame, 3/8" thick & 25 mm wide Flat Steel Bar', qty:'5 bars', stock:'3/8" × 25 mm flat bar', size:'Open frame at ≈150 mm height', note:'Front cross bar, two side bars back to the handles, a centre bar and a rear bar. No floor plate: it is open.'},
+  {id:'2.7', spec:'Bottom Frame, 3/8" thick & 25 mm wide Flat Steel Bar', qty:'4 bars', stock:'3/8" × 25 mm flat bar', size:'Rectangle lying flat on the ground', note:'Extends forward under the drilling point so the trolley is stable while the auger works. Handle feet are welded to its rear bar.'},
+  {id:'2.8', spec:'Wheel Support Arm, ø12 mm Round Steel', qty:'2 (+2 braces)', stock:'ø12 mm round steel; braces in deformed rebar on the built unit', size:'Handle foot → axle', note:'Arm from each handle foot to the axle. The built unit also has a deformed-rebar diagonal from each handle to the hub.'},
+  {id:'2.9', spec:'ø200 mm Wheel Assembly', qty:'2', stock:'ø200 mm pneumatic wheel + axle tube', size:'ø200 mm wheels, axle ≈105 mm high', note:'Axle sits ≈165 mm behind the handles; wheels are outside the frame.'},
+  {id:'2.10',spec:'Gear Case Support, Deformed Rebar Bar', qty:'1', stock:'Deformed rebar', size:'U-cradle under the gear case', note:'Hung from the mounting bars (2.14); takes the weight of the gear case.'},
+  {id:'2.11',spec:'Support Shaft Assembly', qty:'2', stock:'Steel sleeve', size:'Slides on the ø20 mm posts', note:'One sleeve per post; the powerhead mounting (2.14) is welded to them, so the powerhead slides up and down the posts.'},
+  {id:'2.12',spec:'Second Frame ø20 mm Round Steel Bar', qty:'2', stock:'ø20 mm round steel bar (chrome on the built unit)', size:'180 mm centre to centre; second frame up to the top frame', note:'Bottom ends bent back and bolted to the second frame (2.15); tops held by the top frame front bar.'},
+  {id:'2.13',spec:'Support Shaft Assembly', qty:'2', stock:'Clamp screw + knob', size:'One per sleeve', note:'Tighten to lock the powerhead height on the posts.'},
+  {id:'2.14',spec:'Mounting Assembly, 1/8" thick & 15 mm Wide Flat Steel', qty:'4 bars', stock:'1/8" × 15 mm flat bar', size:'Two long bars + two cross bars', note:'Run from the sleeves (2.11) forward under the powerhead and back past the posts.'},
+  {id:'2.15',spec:'Bolt Assembly', qty:'2', stock:'Bolt + nut', size:'At each post foot', note:'Bolt the bent foot of each post (2.12) to the second frame (2.6).'},
+  {id:'2.16',spec:'3/16" thick & 25mm wide Flat Steel Bar', qty:'1', stock:'3/16" × 25 mm flat bar', size:'Rear top bar between the handles', note:'Base for the ratchet tie-down (2.4).'},
+  // ---- 3. Drills ----
+  {id:'3.1', spec:'Adapter, Auger Bit', qty:'1 per drill', stock:'Steel socket, cross pin, R-clip', size:'Socket over the output spindle', note:'Slide over 1.10, push the cross pin through and clip it.', head:null},
+  {id:'3.2', spec:'Auger Bit', qty:'1 per drill', stock:'Steel shaft', size:'Shaft between adapter and working end', note:'All drills are about 800 mm overall.', head:null},
+  {id:'3.3', spec:'Fishtail Bit Point', qty:'1', stock:'Hardened steel point', size:'85 mm (flight auger) / 65 mm (spiral auger)', note:'Centres the hole; replace when blunt.', head:2},
+  {id:'3.4', spec:'Soil Mixer', qty:'1', stock:'Steel', size:'795 mm overall · 190 mm cage · ø160 mm', note:'For mixing at the surface only. It is not designed to penetrate soil.', head:0},
+  {id:'3.5', spec:'Earth Blade', qty:'1', stock:'Steel helical flight', size:'Standard flight: 640 mm, ø150 mm · Spiral: 600 mm, ø90 mm', note:'Lifts spoil out of the hole while drilling.', head:2},
+  {id:'3.6', spec:'Shelby Tube', qty:'1', stock:'Thin-wall steel tube', size:'310 mm shank + 490 mm tube · ø75 mm', note:'Collects an undisturbed soil sample inside the tube.', head:3},
+  {id:'3.7', spec:'Core Barrel', qty:'1', stock:'Steel barrel with toothed crown', size:'460 mm shank + 340 mm barrel · ø88.9 mm', note:'Cuts and retains a soil core.', head:4},
+  {id:'3.8', spec:'Bucket Auger', qty:'1', stock:'Steel bucket with split cutting lips', size:'310 mm shank + 490 mm bucket · ø101.6 mm', note:'Collects a disturbed sample in the bucket.', head:5},
+];
+const NAME = {
+  '1':'Two-cycle engine, 52 cc','1.1':'Starter assembly','1.2':'Bolt assembly, M5 × 20','1.3':'Muffler assembly','1.4':'Carburetor assembly','1.5':'Fuel tube',
+  '1.6':'Handle bar assembly','1.7':'Bolt assembly, M6 × 5','1.8':'Throttle cable & trigger','1.9':'Gear case assembly','1.10':'Auger bit assembly (output spindle)',
+  '1.11':'Fuel tank','1.12':'Steel hook','1.13':'Air filter assembly',
+  '2.1':'Handle (ø25 mm bar)','2.2':'Bolt assembly, M6 × 5','2.3':'Second frame assembly (top frame)','2.4':'Ratchet tie-down','2.5':'Spring hanger','2.6':'Second frame (flat bar)',
+  '2.7':'Bottom frame (flat bar)','2.8':'Wheel support arm (ø12 mm)','2.9':'ø200 mm wheel assembly','2.10':'Gear case support (rebar)','2.11':'Support shaft (sleeve)',
+  '2.12':'Second frame posts (ø20 mm)','2.13':'Support shaft (clamp)','2.14':'Mounting assembly (flat bar)','2.15':'Bolt assembly (post feet)','2.16':'Rear top bar (3/16" flat)',
+  '3.1':'Adapter, auger bit','3.2':'Auger bit (shaft)','3.3':'Fishtail bit point','3.4':'Soil mixer','3.5':'Earth blade (flight)','3.6':'Shelby tube','3.7':'Core barrel','3.8':'Bucket auger',
+};
+
+/* ================= PARTS EXPLORER LOGIC ================= */
+tagRest();
+for (const h of HEADS) h.group.traverse(m=>{ if (m.isMesh && !m.userData.part) m.userData.part = '3.2'; });
+
+// carriage parked high so every drill clears the ground
+carriage.position.y = 0.262;
+let curHead = 2;
+function showHead(i){ curHead = i; HEADS.forEach((h,k)=> h.group.visible = (k===i)); document.querySelectorAll('.hd').forEach((b,k)=>b.classList.toggle('on', k===i)); refreshSelection(); }
+
+// 2.4 strap: ratchet buckle down to the steel hook (1.12)
+CUR = '2.4';
+const strap = new THREE.Mesh(new THREE.BoxGeometry(0.025, 1, 0.0015), M.webbing); scene.add(shadow(strap));
+function updateStrap(){
+  carriage.updateMatrixWorld(true);
+  const top = new THREE.Vector3(0, TY+0.04, UZ_TOP-0.005);
+  const hookW = new THREE.Vector3(0, MY-0.005, -0.14); E.localToWorld(hookW);
+  const d = hookW.clone().sub(top), L = d.length();
+  strap.scale.y = L; strap.position.copy(top).add(hookW).multiplyScalar(0.5); strap.quaternion.setFromUnitVectors(UP, d.normalize());
+}
+
+/* ---- index meshes by part ---- */
+const BYPART = {};
+scene.traverse(m=>{
+  if (!m.isMesh || !m.userData.part || m.userData.part==='env') return;
+  (BYPART[m.userData.part] ||= []).push(m);
+  m.userData.mat0 = m.material;
+  m.userData.p0 = m.position.clone();
+});
+const GHOST = new THREE.MeshStandardMaterial({color:0xb9c4cf, transparent:true, opacity:0.10, depthWrite:false, roughness:0.8});
+function isShown(o){ while (o){ if (!o.visible) return false; o = o.parent; } return true; }
+function partMeshes(id){ return (BYPART[id]||[]).filter(isShown); }
+function partBox(id){ const b = new THREE.Box3(); for (const m of partMeshes(id)) b.expandByObject(m); return b; }
+
+/* ---- exploded view offsets (metres at 100 %) ---- */
+const EXP = {
+  '1':[0,0,0], '1.1':[0,0.08,0], '1.2':[0,0.14,0], '1.3':[0.10,0,0], '1.4':[0.06,-0.02,0.06], '1.5':[0.04,0,0], '1.6':[0,-0.06,0.05],
+  '1.7':[0,0.035,0.05], '1.8':[0.07,-0.05,0], '1.9':[0,-0.08,0], '1.10':[0,-0.15,0], '1.11':[0,0,-0.11], '1.12':[0,-0.05,-0.06], '1.13':[0,0,0.10],
+  '2.1':[0,0,0], '2.2':['sx',0.12,0.04], '2.3':[0,0.12,0], '2.16':[0,0.16,-0.04], '2.4':[0,0.21,-0.06],
+  '2.12':[0,0.04,0.15], '2.11':[0,0.04,0.22], '2.13':['sx',0.04,0.22], '2.14':[0,0.04,0.26], '2.10':[0,-0.02,0.30],
+  '2.15':[0,-0.03,0.13], '2.6':[0,0.03,0.13], '2.5':[0,0.13,0.10], '2.7':[0,0,0.12], '2.8':[0,0,-0.07], '2.9':['sx',0,-0.13],
+  '3.1':[0,0.08,0],
+};
+const E_EXP = new THREE.Vector3(0,0.06,0.30), HEAD_EXP = new THREE.Vector3(0,-0.26,0.30);
+const E0 = E.position.clone(), HM0 = headMount.position.clone();
+scene.updateMatrixWorld(true);
+for (const [id, list] of Object.entries(BYPART)) for (const m of list){
+  const o = EXP[id] || [0,0,0];
+  const c = new THREE.Vector3(); new THREE.Box3().setFromObject(m).getCenter(c);
+  const sx = o[0]==='sx' ? Math.sign(c.x)*0.07 : o[0];
+  const w = new THREE.Vector3(sx, o[1], o[2]);
+  const q = new THREE.Quaternion(); m.parent.getWorldQuaternion(q);
+  m.userData.dLocal = w.applyQuaternion(q.invert());
+}
+let explode = 0;
+function applyExplode(){
+  const t = explode;
+  for (const list of Object.values(BYPART)) for (const m of list) m.position.copy(m.userData.p0).addScaledVector(m.userData.dLocal, t);
+  E.position.copy(E0).addScaledVector(E_EXP, t);
+  headMount.position.copy(HM0).addScaledVector(HEAD_EXP, t);
+  strap.visible = t < 0.02 && labelsOK('2.4');
+  if (strap.visible) updateStrap();
+}
+function labelsOK(){ return true; }
+
+/* ---- dimensions overlay (from drawing AR-1/AR-2) ---- */
+const dimGroup = new THREE.Group(); dimGroup.visible = false; scene.add(dimGroup);
+const dimMat = new THREE.LineBasicMaterial({color:0x1f6fb8});
+const DIMS = [];
+function dimLine(a, b, text, tick=[0.02,0,0], at=0.5){
+  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), T = new THREE.Vector3(...tick);
+  const g = new THREE.BufferGeometry().setFromPoints([A,B, A.clone().sub(T),A.clone().add(T), B.clone().sub(T),B.clone().add(T)]);
+  dimGroup.add(new THREE.LineSegments(g, dimMat));
+  DIMS.push({p: A.clone().lerp(B, at), text});
+}
+const DX0 = 0.36, DZD = -0.56;
+dimLine([DX0,0,DZD],[DX0,1.22,DZD],'1220 mm overall',[0.02,0,0],0.74);
+dimLine([DX0+0.07,0,DZD],[DX0+0.07,0.15,DZD],'150',[0.02,0,0]);
+dimLine([DX0+0.07,0.15,DZD],[DX0+0.07,1.04,DZD],'890',[0.02,0,0]);
+dimLine([DX0+0.07,1.04,DZD],[DX0+0.07,1.22,DZD],'180',[0.02,0,0]);
+dimLine([UX+0.07,1.10,UZ_TOP],[UX+0.07,1.10,PZ],'175',[0,0.02,0]);
+dimLine([-PX,0.42,PZ+0.03],[PX,0.42,PZ+0.03],'180 c/c',[0,0.02,0]);
+dimLine([WX+0.06,AX_Y-0.10,AX_Z],[WX+0.06,AX_Y+0.10,AX_Z],'ø200',[0,0,0.02]);
+
+/* ---- labels (numbered tags) ---- */
+const tagLayer = document.getElementById('tags');
+const TAGS = {};
+for (const p of PARTS){
+  const el = document.createElement('div'); el.className = 'tag num'; el.textContent = p.id; el.dataset.id = p.id;
+  el.onclick = (e)=>{ e.stopPropagation(); select(p.id); };
+  tagLayer.appendChild(el); TAGS[p.id] = el;
+}
+const DIMTAGS = DIMS.map(d=>{ const el = document.createElement('div'); el.className='tag dim'; el.textContent=d.text; tagLayer.appendChild(el); return el; });
+
+/* ---- UI state ---- */
+let group = '1', selected = null, showLabels = true, ghostOthers = true, spin = false;
+const $ = s=>document.querySelector(s);
+function partGroup(id){ return id.split('.')[0]; }
+function buildList(){
+  const box = $('#list'); box.innerHTML = '';
+  for (const p of PARTS.filter(p=>partGroup(p.id)===group)){
+    const b = document.createElement('button'); b.className = 'item'; b.dataset.id = p.id;
+    b.innerHTML = `<i>${p.id}</i><span>${NAME[p.id]}</span>`;
+    b.onclick = ()=> select(selected===p.id ? null : p.id);
+    box.appendChild(b);
+  }
+  $('#gdesc').textContent = GROUPS[group].desc;
+  document.querySelectorAll('[data-g]').forEach(b=>b.classList.toggle('on', b.dataset.g===group));
+  markList();
+}
+function markList(){ document.querySelectorAll('.item').forEach(b=>b.classList.toggle('on', b.dataset.id===selected)); }
+document.querySelectorAll('[data-g]').forEach(b=> b.onclick = ()=>{ group = b.dataset.g; buildList(); });
+
+function refreshSelection(){
+  for (const [id, list] of Object.entries(BYPART)) for (const m of list){
+    if (!selected) { m.material = m.userData.mat0; continue; }
+    if (id === selected){
+      if (!m.userData.hl){ m.userData.hl = m.userData.mat0.clone(); if (m.userData.hl.emissive){ m.userData.hl.emissive = new THREE.Color(0x1f6fb8); m.userData.hl.emissiveIntensity = 0.22; } }
+      m.material = m.userData.hl;
+    } else m.material = ghostOthers ? GHOST : m.userData.mat0;
+  }
+  strap.material = selected && selected!=='2.4' && ghostOthers ? GHOST : (selected==='2.4' ? (strap.userData.hl ||= Object.assign(M.webbing.clone(),{emissive:new THREE.Color(0x1f6fb8), emissiveIntensity:0.45})) : M.webbing);
+}
+function select(id){
+  selected = id;
+  if (id){
+    const p = PARTS.find(q=>q.id===id);
+    if (p.head != null && !(id==='3.3' && curHead===1) && !(id==='3.5' && curHead===1)) showHead(p.head);
+    if (partGroup(id)!==group){ group = partGroup(id); buildList(); }
+    $('#info').innerHTML = `
+      <div class="ihead"><b class="badge">${p.id}</b><div><div class="iname">${NAME[p.id]}</div><div class="igrp">${GROUPS[partGroup(p.id)].title}</div></div></div>
+      <div class="kv"><span>Table 7 specification</span><b>${p.spec}</b></div>
+      <div class="kv"><span>Quantity</span><b>${p.qty}</b></div>
+      <div class="kv"><span>Stock / source</span><b>${p.stock}</b></div>
+      <div class="kv"><span>Size</span><b>${p.size}</b></div>
+      <div class="desc">${p.note}</div>
+      <div class="row" style="margin-top:8px"><button id="bZoom">Zoom to part</button><button id="bAll">Full view</button></div>`;
+    $('#bZoom').onclick = ()=> flyToPart(id);
+    $('#bAll').onclick = ()=> { select(null); flyHome(); };
+    flyToPart(id);
+  } else {
+    $('#info').innerHTML = `<div class="empty">Select a part from the list, a numbered tag or the model itself to see its specification and how it is fitted.</div>`;
+  }
+  markList(); refreshSelection();
+}
+
+/* ---- camera fly ---- */
+let fly = null;
+function flyTo(target, pos, dur=0.75){ fly = {t:0, dur, t0:controls.target.clone(), p0:camera.position.clone(), t1:target, p1:pos}; }
+function flyToPart(id){
+  const b = partBox(id); if (b.isEmpty()) return;
+  const c = b.getCenter(new THREE.Vector3()), s = b.getSize(new THREE.Vector3()).length();
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  const dist = THREE.MathUtils.clamp(s*3.2, 0.32, 2.8);
+  flyTo(c, c.clone().addScaledVector(dir, dist));
+}
+const FIT_C = new THREE.Vector3(0, 0.62, 0.08), FIT_DIR = new THREE.Vector3(0.62,0.36,0.70).normalize();
+function homeDist(){ const v = THREE.MathUtils.degToRad(camera.fov)/2, h = Math.atan(Math.tan(v)*camera.aspect*(innerWidth>720 ? (innerWidth-330)/innerWidth : 1)); return 0.86/Math.sin(Math.min(v,h))*1.04; }
+function flyHome(){ flyTo(FIT_C.clone(), FIT_C.clone().addScaledVector(FIT_DIR, homeDist())); }
+
+/* ---- picking on the model ---- */
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(); let down = null;
+canvas.addEventListener('pointerdown', e=>{ down = [e.clientX, e.clientY]; });
+canvas.addEventListener('pointerup', e=>{
+  if (!down || Math.hypot(e.clientX-down[0], e.clientY-down[1]) > 5) return;
+  const r = canvas.getBoundingClientRect();
+  ptr.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(ptr, camera);
+  const hits = ray.intersectObjects(scene.children, true).filter(h=>h.object.isMesh && h.object.userData.part && h.object.userData.part!=='env' && isShown(h.object));
+  const solid = hits.filter(h=>h.object.material!==GHOST);
+  const pick = solid[0] || hits[0];
+  if (pick) select(pick.object.userData.part); else select(null);
+});
+
+/* ---- controls in the panel ---- */
+$('#lbl').onchange = e=>{ showLabels = e.target.checked; };
+$('#dim').onchange = e=>{ dimGroup.visible = e.target.checked; };
+$('#ghost').onchange = e=>{ ghostOthers = e.target.checked; refreshSelection(); };
+$('#exp').oninput = e=>{ explode = e.target.value/100; $('#expv').textContent = e.target.value+'%'; applyExplode(); };
+$('#bSpin').onclick = e=>{ spin = !spin; e.target.textContent = spin ? 'Stop drill' : 'Spin drill'; e.target.classList.toggle('on', spin); };
+$('#bRot').onclick = e=>{ controls.autoRotate = !controls.autoRotate; controls.autoRotateSpeed = 1.0; e.target.classList.toggle('on', controls.autoRotate); };
+$('#bHome').onclick = ()=>{ select(null); flyHome(); };
+document.querySelectorAll('.hd').forEach((b,k)=> b.onclick = ()=> showHead(k));
+// bill of materials
+function bomRows(){ return PARTS.map(p=>[p.id, GROUPS[partGroup(p.id)].title.replace(/^\d · /,''), p.spec, p.qty, p.stock, p.size]); }
+$('#bBom').onclick = ()=>{
+  const rows = bomRows();
+  $('#bomBody').innerHTML = rows.map(r=>`<tr>${r.map((c,i)=>`<td${i===0?' class="lb"':''}>${c}</td>`).join('')}</tr>`).join('');
+  $('#bom').style.display = 'flex';
+};
+$('#bomClose').onclick = ()=> $('#bom').style.display = 'none';
+$('#bom').onclick = e=>{ if (e.target.id==='bom') $('#bom').style.display = 'none'; };
+$('#bomCopy').onclick = async ()=>{
+  const csv = [['Label','Assembly','Specification (Table 7)','Qty','Stock / source','Size']].concat(bomRows()).map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  try { await navigator.clipboard.writeText(csv); $('#bomCopy').textContent = 'Copied'; } catch(_) { $('#bomCopy').textContent = 'Copy blocked'; }
+  setTimeout(()=> $('#bomCopy').textContent = 'Copy as CSV', 1600);
+};
+
+/* ---- frame loop ---- */
+const tmpV = new THREE.Vector3();
+function project(p, el){
+  tmpV.copy(p).project(camera);
+  const vis = tmpV.z < 1 && Math.abs(tmpV.x) < 1.05 && Math.abs(tmpV.y) < 1.05;
+  el.style.display = vis ? 'block' : 'none';
+  if (vis){ el.style.transform = `translate(-50%,-50%) translate(${(tmpV.x*0.5+0.5)*innerWidth}px, ${(-tmpV.y*0.5+0.5)*innerHeight}px)`; }
+}
+function updateTags(){
+  for (const p of PARTS){
+    const el = TAGS[p.id];
+    const show = showLabels && (partGroup(p.id)===group || p.id===selected) && (!selected || p.id===selected || !ghostOthers);
+    const list = partMeshes(p.id);
+    if (!show || !list.length){ el.style.display='none'; continue; }
+    const c = new THREE.Box3().setFromObject(list[0]).getCenter(new THREE.Vector3());
+    project(c, el);
+    el.classList.toggle('sel', p.id===selected);
+    el.textContent = p.id===selected ? `${p.id} · ${NAME[p.id]}` : p.id;
+  }
+  DIMS.forEach((d,i)=>{ if (dimGroup.visible) project(d.p, DIMTAGS[i]); else DIMTAGS[i].style.display='none'; });
+}
+function resize(){ renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth/innerHeight;
+  if (innerWidth > 720) camera.setViewOffset(innerWidth, innerHeight, -150, 0, innerWidth, innerHeight); else camera.clearViewOffset();
+  camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(()=>{
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (fly){ fly.t += dt; const k = Math.min(1, fly.t/fly.dur), e = k<0.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2;
+    controls.target.lerpVectors(fly.t0, fly.t1, e); camera.position.lerpVectors(fly.p0, fly.p1, e); if (k>=1) fly = null; }
+  if (spin) HEADS[curHead].group.rotation.y -= dt*6;
+  controls.update();
+  renderer.render(scene, camera);
+  updateTags();
+});
+
+// start
+buildList(); showHead(2); select(null); applyExplode();
+camera.position.copy(FIT_C).addScaledVector(FIT_DIR, homeDist()); controls.target.copy(FIT_C); controls.update();
+window.__api = { select, showHead, flyHome, setExplode:v=>{ explode=v; $('#exp').value=v*100; $('#expv').textContent=Math.round(v*100)+'%'; applyExplode(); }, setDims:v=>{ dimGroup.visible=v; $('#dim').checked=v; }, setGroup:g=>{ group=g; buildList(); }, renderNow:()=>{ controls.update(); renderer.render(scene,camera); updateTags(); }, jump:()=>{ if (fly){ controls.target.copy(fly.t1); camera.position.copy(fly.p1); fly=null; } } };
+
+</script>
+</body>
+</html>
